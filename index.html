@@ -668,10 +668,10 @@ function buildMap(){const tok=++mapTok;mapIn.children.slice().forEach(c=>{mapIn.
   new THREE.TextureLoader().load(BAKED.src,t=>{if(tok!==mapTok)return;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;mat.map=t;mat.needsUpdate=true;m.visible=true;mapShown=true;applyMapVis();st.textContent='Built-in satellite map. Plot pin: 10.261189, 76.176187.'});placeMap();return}
  const url=mapMode==='sat'?(z,x,y)=>`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`:(z,x,y)=>`https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
  const ld=new THREE.TextureLoader();ld.setCrossOrigin('anonymous');let ok=0,bad=0,total=0;
- for(const[z,Rn,po]of[[16,2,1],[18,3,2],[19,3,3]]){const n=2**z,fx=(SITE.lon+180)/360*n,fy=(1-Math.log(Math.tan(SITE.lat*PI/180)+1/Math.cos(SITE.lat*PI/180))/PI)/2*n,cx=Math.floor(fx),cy=Math.floor(fy);
+ for(const[z,Rn,po]of[[16,2,1],[18,3,2],[19,4,3]]){const n=2**z,fx=(SITE.lon+180)/360*n,fy=(1-Math.log(Math.tan(SITE.lat*PI/180)+1/Math.cos(SITE.lat*PI/180))/PI)/2*n,cx=Math.floor(fx),cy=Math.floor(fy);
   for(let dx=-Rn;dx<=Rn;dx++)for(let dy=-Rn;dy<=Rn;dy++){const x=cx+dx,y=cy+dy,w=(x/n*360-180-SITE.lon)*mE,e=((x+1)/n*360-180-SITE.lon)*mE,nn=-(tLat(y,z)-SITE.lat)*mN,ss=-(tLat(y+1,z)-SITE.lat)*mN;total++;
    const mat=new THREE.MeshBasicMaterial({color:night?0x2a2f3a:0xffffff,toneMapped:false,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-po,polygonOffsetUnits:-po});mapMats.push(mat);
-   const m=new THREE.Mesh(new THREE.PlaneGeometry(e-w,ss-nn),mat);m.rotation.x=-PI/2;m.position.set((w+e)/2,-.02,(nn+ss)/2);m.renderOrder=-po+3;m.visible=false;mapIn.add(m);
+   const m=new THREE.Mesh(new THREE.PlaneGeometry(e-w,ss-nn),mat);m.rotation.x=-PI/2;m.position.set((w+e)/2,-.02,(nn+ss)/2);m.renderOrder=po;m.visible=false;mapIn.add(m);
    ld.load(url(z,x,y),t=>{if(tok!==mapTok)return;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;mat.map=t;mat.needsUpdate=true;m.visible=true;ok++;if(!mapShown){mapShown=true;applyMapVis()}st.textContent=`Map loaded (${ok} of ${total} tiles). Plot pin: 10.261189, 76.176187.`},undefined,()=>{if(tok!==mapTok)return;bad++;if(!ok&&bad===total)st.textContent='The map could not load on this page. It loads on the GitHub link.'})}}
  placeMap()}
 window.__mapReady=true;
