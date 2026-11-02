@@ -72,6 +72,7 @@ button:hover{background:rgba(255,255,255,.12)}
    <h3>How to use it</h3><ul>
    <li><b>Bird's-eye:</b> pick a camera angle from the bar, or turn on Spin.</li>
    <li><b>Walkthrough:</b> W A S D or arrows to move, drag to look, Space to jump (you can jump onto the plinth and garden edges). Doors are open, and steps lead outside from the sitout, lobby and work area.</li>
+   <li><b>Character:</b> in Walkthrough you play a character seen from behind. Drag to swing the camera, C or the Character button switches to first person.</li>
    <li><b>Upstairs:</b> walk up the stair, or press the Upstairs button.</li>
    <li><b>Lights:</b> click any wall switch beside a door, or use the Lights tab.</li>
    <li><b>Furniture:</b> open Furniture, turn on Arrange, then drag items, rotate or delete them, or add new ones.</li></ul>
@@ -129,9 +130,10 @@ button:hover{background:rgba(255,255,255,.12)}
 <div id="pad" hidden><button data-k="Space" aria-label="Jump">⤒</button><button data-k="KeyW" aria-label="Forward">▲</button><span></span><button data-k="KeyA" aria-label="Left">◀</button><button data-k="KeyS" aria-label="Back">▼</button><button data-k="KeyD" aria-label="Right">▶</button></div>
 <div class="bar panel">
  <div class="seg" role="group" aria-label="View mode"><button id="mOrbit" aria-pressed="true">Bird's-eye</button><button id="mDoll" aria-pressed="false">Dollhouse</button><button id="mWalk" aria-pressed="false">Walkthrough</button></div>
- <select id="angle" aria-label="Camera angle"><option value="">Camera angle…</option><option>Front</option><option>Front left</option><option>Front right</option><option>Left side</option><option>Right side</option><option>Rear</option><option>Top down</option><option>From the gate</option></select>
+ <select id="angle" aria-label="Camera angle"><option value="">Camera angle…</option><option>Front</option><option>Front left</option><option>Front right</option><option>Left side</option><option>Right side</option><option>Rear</option><option>Top down</option><option>Neighbourhood</option><option>From the gate</option></select>
  <button class="tog" id="tSpin" aria-pressed="false">Spin</button>
  <button class="tog" id="floorBtn" hidden>Upstairs</button>
+ <button class="tog" id="tHero" aria-pressed="true" hidden>Character</button>
  <button class="tog" id="tNight" aria-pressed="false">Night</button>
  <button class="tog" id="tRoof" aria-pressed="true">Roof</button>
  <button class="tog" id="tLab" aria-pressed="false">Labels</button>
@@ -165,7 +167,7 @@ renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const scene=new THREE.Scene();scene.fog=new THREE.Fog(0xd9e5ea,70,260);
 const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(new RoomEnvironment(),0.04).texture;
-const cam=new THREE.PerspectiveCamera(45,1,0.08,1400);
+const cam=new THREE.PerspectiveCamera(45,1,0.08,5000);
 const roofG=new THREE.Group(),siteG=new THREE.Group();scene.add(roofG,siteG);
 
 /* ---------- Canvas textures ---------- */
@@ -659,7 +661,7 @@ sky.renderOrder=-1;sky.material.depthTest=false;
 let mapMode='sat',mapB=59,mapEo=0,mapNo=0,mapTok=0;const mapMats=[];
 const tLat=(y,z)=>{const n=PI-2*PI*y/2**z;return 180/PI*Math.atan(.5*(Math.exp(n)-Math.exp(-n)))};
 function applyMapVis(){const on=mapShown&&mapMode!=='off';if(GROUND)GROUND.visible=!on;OUTV.forEach(m=>m.visible=!on);shadowCatch.visible=on;siteG.children.forEach(c=>{if(c.userData.road)c.visible=!on});
- scene.fog.near=on?160:70;scene.fog.far=on?850:260;const a=document.getElementById('attr');a.hidden=!on;a.textContent=mapMode==='sat'?'Imagery © Esri, Maxar, Earthstar Geographics':'© OpenStreetMap contributors'}
+ scene.fog.near=on?500:70;scene.fog.far=on?3200:260;const a=document.getElementById('attr');a.hidden=!on;a.textContent=mapMode==='sat'?'Imagery © Esri, Maxar, Earthstar Geographics':'© OpenStreetMap contributors'}
 function placeMap(){const cx=(HX_L-plot.l+HX_R+plot.r)/2,cz=(HZ_F+plot.f+HZ_R-plot.b)/2;mapG.position.set(cx,0,cz);mapG.rotation.y=(mapB-180)*PI/180;mapIn.position.set(-mapEo,0,mapNo)}
 function buildMap(){const tok=++mapTok;mapIn.children.slice().forEach(c=>{mapIn.remove(c);c.geometry.dispose();c.material.map?.dispose();c.material.dispose()});mapMats.length=0;mapShown=false;applyMapVis();
  const st=document.getElementById('mapStat');if(mapMode==='off'){st.textContent='Map is off.';return}st.textContent='Loading the map…';
@@ -668,7 +670,7 @@ function buildMap(){const tok=++mapTok;mapIn.children.slice().forEach(c=>{mapIn.
   new THREE.TextureLoader().load(BAKED.src,t=>{if(tok!==mapTok)return;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;mat.map=t;mat.needsUpdate=true;m.visible=true;mapShown=true;applyMapVis();st.textContent='Built-in satellite map. Plot pin: 10.261189, 76.176187.'});placeMap();return}
  const url=mapMode==='sat'?(z,x,y)=>`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`:(z,x,y)=>`https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
  const ld=new THREE.TextureLoader();ld.setCrossOrigin('anonymous');let ok=0,bad=0,total=0;
- for(const[z,Rn,po]of[[16,2,1],[18,3,2],[19,4,3]]){const n=2**z,fx=(SITE.lon+180)/360*n,fy=(1-Math.log(Math.tan(SITE.lat*PI/180)+1/Math.cos(SITE.lat*PI/180))/PI)/2*n,cx=Math.floor(fx),cy=Math.floor(fy);
+ for(const[z,Rn,po]of[[14,2,0],[16,2,1],[18,3,2],[19,4,3]]){const n=2**z,fx=(SITE.lon+180)/360*n,fy=(1-Math.log(Math.tan(SITE.lat*PI/180)+1/Math.cos(SITE.lat*PI/180))/PI)/2*n,cx=Math.floor(fx),cy=Math.floor(fy);
   for(let dx=-Rn;dx<=Rn;dx++)for(let dy=-Rn;dy<=Rn;dy++){const x=cx+dx,y=cy+dy,w=(x/n*360-180-SITE.lon)*mE,e=((x+1)/n*360-180-SITE.lon)*mE,nn=-(tLat(y,z)-SITE.lat)*mN,ss=-(tLat(y+1,z)-SITE.lat)*mN;total++;
    const mat=new THREE.MeshBasicMaterial({color:night?0x2a2f3a:0xffffff,toneMapped:false,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-po,polygonOffsetUnits:-po});mapMats.push(mat);
    const m=new THREE.Mesh(new THREE.PlaneGeometry(e-w,ss-nn),mat);m.rotation.x=-PI/2;m.position.set((w+e)/2,-.02,(nn+ss)/2);m.renderOrder=po;m.visible=false;mapIn.add(m);
@@ -681,12 +683,22 @@ async function saveMap(){const st=document.getElementById('mapStat'),z=18,N=9,R=
  await Promise.all(jobs);if(!ok){st.textContent='Could not reach the map service from this page. Use the GitHub link.';return}
  try{c.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`mkz-villa-map_z${z}_x${cx-R}_y${cy-R}_n${N}.jpg`;document.body.appendChild(a);a.click();a.remove();st.textContent=`Map image saved (${ok} of ${N*N} tiles). Send this file to Claude.`},'image/jpeg',.86)}catch(e){st.textContent='This page cannot save files. Use the GitHub link.'}}
 const mapUI=()=>{$('oMB').textContent=`${mapB}° (${['N','NE','E','SE','S','SW','W','NW'][Math.round(mapB/45)%8]})`;$('oME').textContent=`${mapEo>=0?'+':''}${mapEo} m`;$('oMN').textContent=`${mapNo>=0?'+':''}${mapNo} m`};
+/* ---------- Game character (third-person walkthrough) ---------- */
+const hero=new THREE.Group(),heroL={};{const skin=std({color:0xc4865c,roughness:.7}),shirt=std({color:0x2e6f73,roughness:.9}),pants=std({color:0x2b3647,roughness:.9}),hair=std({color:0x1b1410,roughness:.8}),shoe=std({color:0xf2f2ee,roughness:.6});
+ const add2=(par,geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;par.add(m);return m};
+ add2(hero,new RoundedBoxGeometry(.42,.56,.24,3,.08),shirt,0,1.24,0);add2(hero,new RoundedBoxGeometry(.4,.14,.23,2,.05),pants,0,.93,0);add2(hero,new THREE.CylinderGeometry(.055,.06,.1,12),skin,0,1.57,0);
+ const head=add2(hero,new THREE.SphereGeometry(.13,24,18),skin,0,1.73,0);const hr=add2(hero,new THREE.SphereGeometry(.137,24,12,0,PI*2,0,PI*.55),hair,0,1.745,.01);
+ for(const sx of[-.045,.045])add2(hero,new THREE.SphereGeometry(.016,8,6),hair,sx,1.75,-.122);
+ for(const sd of[-1,1]){const leg=new THREE.Group();leg.position.set(sd*.1,.9,0);add2(leg,new THREE.CylinderGeometry(.075,.065,.82,12),pants,0,-.41,0);add2(leg,new RoundedBoxGeometry(.12,.08,.25,2,.03),shoe,0,-.86,-.04);hero.add(leg);heroL['leg'+sd]=leg;
+  const arm=new THREE.Group();arm.position.set(sd*.27,1.48,0);add2(arm,new THREE.CylinderGeometry(.065,.06,.26,12),shirt,0,-.12,0);add2(arm,new THREE.CylinderGeometry(.05,.045,.34,12),skin,0,-.4,0);add2(arm,new THREE.SphereGeometry(.05,10,8),skin,0,-.6,0);hero.add(arm);heroL['arm'+sd]=arm}
+ hero.visible=false;scene.add(hero)}
+const plr=new THREE.Vector3();let tp=true,heroYaw=0,phase=0;
 /* ---------- Navigation state ---------- */
-const controls=new OrbitControls(cam,cvs);controls.enableDamping=true;controls.maxPolarAngle=1.5;controls.minDistance=2;controls.maxDistance=320;controls.autoRotateSpeed=.6;
+const controls=new OrbitControls(cam,cvs);controls.enableDamping=true;controls.maxPolarAngle=1.5;controls.minDistance=2;controls.maxDistance=1200;controls.autoRotateSpeed=.6;
 let mode='orbit',roofOn=true,labOn=false,night=false,yaw=0,pitch=0,feet=F,vy=0,grounded=true,camY=F+1.62,keys={},drag=null,down=null,tween=null,edit=false,measuring=false,selG=null,selBox=null,dragG=null,LB=1,TEMP='warm',front=59,diningN=6,showSmall=true;
 const hint=$('hint'),pad=$('pad'),tip=$('tip'),dragOff=new THREE.Vector3(),ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),V=(...a)=>new THREE.Vector3(...a);
 const ORB={p:[-9,17,38],t:[1.5,2,1.5]},DOLL={p:[.5,42,9],t:[0,0,-.5]};
-const ANG={'Front':[[0,14,40],[1,2,2]],'Front left':[[-28,16,30],[0,2,0]],'Front right':[[30,16,30],[1,2,0]],'Left side':[[-38,12,0],[0,2,0]],'Right side':[[40,12,0],[1,2,0]],'Rear':[[0,16,-42],[0,2,0]],'Top down':[[.1,58,.1],[0,0,0]],'From the gate':[[P(560,0)[0],1.7,21.5],[0,3.5,0]]};
+const ANG={'Front':[[0,14,40],[1,2,2]],'Front left':[[-28,16,30],[0,2,0]],'Front right':[[30,16,30],[1,2,0]],'Left side':[[-38,12,0],[0,2,0]],'Right side':[[40,12,0],[1,2,0]],'Rear':[[0,16,-42],[0,2,0]],'Top down':[[.1,58,.1],[0,0,0]],'Neighbourhood':[[60,520,420],[0,0,0]],'From the gate':[[P(560,0)[0],1.7,21.5],[0,3.5,0]]};
 const inS=(s,x,z)=>x>=s[0]&&x<=s[1]&&z>=s[2]&&z<=s[3];
 function floorAt(x,z,f){let b=0;for(const s of SURF)if(inS(s,x,z)&&s[4]<=f+.5&&s[4]>b)b=s[4];return b}
 function blocked(x,z,f,r=.22){const lo=f+.15,hi=f+1.7;for(const L of[COL,SCOL])for(const c of L)if(x>c[0]-r&&x<c[1]+r&&z>c[2]-r&&z<c[3]+r&&c[5]>lo&&c[4]<hi)return true;
@@ -707,10 +719,10 @@ function setTime(t){$('tod').value=t;$('oTod').textContent=`${String(Math.floor(
  if(!n){const k=Math.min(1,Math.sin(el)*2.2);sun.intensity=2.9*Math.max(.3,k);sun.color.copy(cWarm).lerp(cDay,k);sun.position.copy(v.multiplyScalar(60));hemi.intensity=.42+.3*k}
  qib.rotation.y=-(292-front)*PI/180;save()}
 function setMode(m,at){mode=m;tween=null;['mOrbit','mDoll','mWalk'].forEach(id=>$(id).setAttribute('aria-pressed',String(id==={orbit:'mOrbit',doll:'mDoll',walk:'mWalk'}[m])));
- controls.enabled=m!=='walk';controls.autoRotate=m!=='walk'&&$('tSpin').getAttribute('aria-pressed')==='true';pad.hidden=m!=='walk';$('floorBtn').hidden=m!=='walk';$('angle').hidden=$('tSpin').hidden=m==='walk';
+ controls.enabled=m!=='walk';controls.autoRotate=m!=='walk'&&$('tSpin').getAttribute('aria-pressed')==='true';pad.hidden=m!=='walk';$('floorBtn').hidden=m!=='walk';$('tHero').hidden=m!=='walk';hero.visible=false;$('angle').hidden=$('tSpin').hidden=m==='walk';
  cam.fov=m==='walk'?70:45;cam.updateProjectionMatrix();labOn=m==='doll';
- if(m==='walk'){const j=at??JUMP['Front gate'];feet=floorAt(j[0],j[1],j[3]??F);vy=0;grounded=true;cam.position.set(j[0],feet+1.62,j[1]);camY=feet+1.62;yaw=j[2];pitch=0;roofG.visible=roofOn=true;
-  hint.textContent='W A S D or arrows to move · drag to look · Space to jump · click wall switches for lights'}
+ if(m==='walk'){const j=at??JUMP['Front gate'];feet=floorAt(j[0],j[1],j[3]??F);vy=0;grounded=true;plr.set(j[0],0,j[1]);heroYaw=j[2];cam.position.set(j[0],feet+1.62,j[1]);camY=feet+1.62;yaw=j[2];pitch=0;roofG.visible=roofOn=true;
+  hint.textContent='W A S D or arrows to move · drag to turn the camera · Space to jump · C switches character / first person'}
  else{const v=m==='doll'?DOLL:ORB;cam.position.set(...v.p);controls.target.set(...v.t);roofOn=m!=='doll';roofG.visible=roofOn;hint.textContent=m==='doll'?'Roof lifted to read the plan · drag to rotate · scroll to zoom':'Drag to orbit · scroll or pinch to zoom · right-drag to pan'}
  $('tRoof').setAttribute('aria-pressed',String(roofOn));$('tLab').setAttribute('aria-pressed',String(labOn));sel.value='';$('angle').value='';cvs.focus()}
 function flyTo(p,t){if(mode==='walk')setMode('orbit');tween={p0:cam.position.clone(),t0:controls.target.clone(),p1:V(...p),t1:V(...t),k:0}}
@@ -723,6 +735,7 @@ $('floorBtn').onclick=()=>setMode('walk',feet>UF-1?JUMP['Living']:JUMP['Upper fl
 $('tNight').onclick=()=>setTime(night?10:20);
 $('tRoof').onclick=()=>{roofOn=!roofOn;roofG.visible=roofOn;$('tRoof').setAttribute('aria-pressed',String(roofOn))};
 $('tLab').onclick=()=>{labOn=!labOn;$('tLab').setAttribute('aria-pressed',String(labOn))};
+const setTP=v=>{tp=v;$('tHero').setAttribute('aria-pressed',String(tp))};$('tHero').onclick=()=>setTP(!tp);
 $('tCust').onclick=e=>{const on=$('side').hidden;$('side').hidden=!on;e.currentTarget.setAttribute('aria-pressed',String(on))};
 sel.onchange=()=>{if(sel.value)setMode('walk',JUMP[sel.value])};
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',String(x===b)));document.querySelectorAll('[data-p]').forEach(s=>s.hidden=s.dataset.p!==b.dataset.t)});
@@ -780,7 +793,7 @@ const del=()=>{if(selG){scene.remove(selG);FURN.splice(FURN.indexOf(selG),1);sel
 $('fRot').onclick=rot;$('fDel').onclick=del;
 $('fDup').onclick=()=>{if(!selG)return;const u=selG.userData,g=spawn(u.kind,(selG.position.x+.6)/S+OX,(selG.position.z+.6)/S+OY,u.ry,u.arg,null,F+selG.position.y);g.rotation.y=selG.rotation.y;select(g);save()};
 $('catalog').onclick=e=>{const b=e.target.closest('button');if(!b)return;let x,z,base=F;
- if(mode==='walk'){x=cam.position.x-Math.sin(yaw)*1.6;z=cam.position.z-Math.cos(yaw)*1.6;base=feet>UF-.5?UF:F}else{const p=planeHit({clientX:innerWidth/2,clientY:innerHeight/2},F)||V(0,0,0);x=p.x;z=p.z}
+ if(mode==='walk'){x=plr.x-Math.sin(yaw)*1.6;z=plr.z-Math.cos(yaw)*1.6;base=feet>UF-.5?UF:F}else{const p=planeHit({clientX:innerWidth/2,clientY:innerHeight/2},F)||V(0,0,0);x=p.x;z=p.z}
  const g=spawn(b.dataset.add,x/S+OX,z/S+OY,0,null,null,base);if(!edit)$('tEdit').click();select(g);save()};
 /* dining set: 4, 6 or 8 seats, with a clearance check */
 function setDining(n,noSave){diningN=n;const old=FURN.find(g=>g.userData.kind==='Dining table'),pos=old?old.position.clone():V(P(620,0)[0],0,P(0,570)[1]);
@@ -814,7 +827,7 @@ mapB=front;$('mB').value=front;$('mE').value=mapEo;$('mN').value=mapNo;$('orient
 
 /* ---------- Pointer and keyboard ---------- */
 addEventListener('keydown',e=>{if(/SELECT|INPUT/.test(e.target.tagName))return;keys[e.code]=1;if(mode==='walk'&&(e.code.startsWith('Arrow')||e.code==='Space'))e.preventDefault();
- if(edit&&selG){if(e.code==='KeyR')rot();if(e.code==='Delete'||e.code==='Backspace')del()}});
+ if(mode==='walk'&&e.code==='KeyC')setTP(!tp);if(edit&&selG){if(e.code==='KeyR')rot();if(e.code==='Delete'||e.code==='Backspace')del()}});
 addEventListener('keyup',e=>keys[e.code]=0);
 cvs.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];
  if(edit){const g=pickFurn(e);if(g){select(g);dragG=g;controls.enabled=false;const p=planeHit(e,F+g.position.y);if(p)dragOff.copy(p).sub(g.position);cvs.setPointerCapture(e.pointerId);return}}
@@ -837,15 +850,23 @@ const clock=new THREE.Clock(),tmp=new THREE.Vector3(),cd=new THREE.Vector3(),nee
 renderer.setAnimationLoop(()=>{const dt=Math.min(clock.getDelta(),.05);
  if(mode==='walk'){const sp=(keys.ShiftLeft||keys.ShiftRight?4.2:2.0)*dt,f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),s=(keys.KeyD?1:0)-(keys.KeyA?1:0);
   if(keys.ArrowLeft)yaw+=1.6*dt;if(keys.ArrowRight)yaw-=1.6*dt;
-  const dx=(-Math.sin(yaw)*f+Math.cos(yaw)*s)*sp,dz=(-Math.cos(yaw)*f-Math.sin(yaw)*s)*sp,p=cam.position;
+  const dx=(-Math.sin(yaw)*f+Math.cos(yaw)*s)*sp,dz=(-Math.cos(yaw)*f-Math.sin(yaw)*s)*sp,p=plr;
   if(dx&&!blocked(p.x+dx,p.z,feet))p.x+=dx;if(dz&&!blocked(p.x,p.z+dz,feet))p.z+=dz;
   if(keys.Space&&grounded){vy=4.4;grounded=false}
   const fl=floorAt(p.x,p.z,feet);
   if(!grounded||fl<feet-.02){grounded=false;vy-=9.8*dt;feet+=vy*dt;const f2=floorAt(p.x,p.z,Math.max(feet,fl));if(feet<=f2){feet=f2;vy=0;grounded=true}}
   else if(fl>feet)feet=fl;
-  camY+=(feet+1.62-camY)*Math.min(1,dt*(grounded?14:30));p.y=camY;
-  tmp.set(-Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch)).add(p);cam.lookAt(tmp);
-  let best=null,bd=4.5;for(const m of MIR){m.visible=false;const d=m.position.distanceTo(p);m.getWorldDirection(cd);if(d<bd&&cd.dot(tmp.copy(p).sub(m.position))>0){bd=d;best=m}}if(best)best.visible=true;
+  camY+=(feet+1.62-camY)*Math.min(1,dt*(grounded?14:30));
+  if(tp){hero.visible=true;hero.position.set(p.x,feet,p.z);const mv=dx||dz;
+   if(mv){const ty=Math.atan2(-dx,-dz);let d=ty-heroYaw;d=Math.atan2(Math.sin(d),Math.cos(d));heroYaw+=d*Math.min(1,dt*12);phase+=dt*(sp/dt>3?15:10)}else phase*=.85;
+   hero.rotation.y=heroYaw;const sw=Math.sin(phase)*(mv?.7:0)*(grounded?1:.3),air=grounded?0:.5;heroL['leg-1'].rotation.x=sw+air;heroL['leg1'].rotation.x=-sw-air*.5;heroL['arm-1'].rotation.x=-sw*.8;heroL['arm1'].rotation.x=sw*.8;
+   const pc=Math.max(-.1,Math.min(1.2,pitch+.3)),hy=camY-.3;let D=3.4;
+   for(let d=.4;d<=3.4;d+=.15){const x=p.x+Math.sin(yaw)*Math.cos(pc)*d,z=p.z+Math.cos(yaw)*Math.cos(pc)*d,y=hy+Math.sin(pc)*d;if(COL.some(c=>x>c[0]-.12&&x<c[1]+.12&&z>c[2]-.12&&z<c[3]+.12&&y>c[4]&&y<c[5]+.6)){D=Math.max(.35,d-.2);break}}
+   let cy=hy+Math.sin(pc)*D;if(feet>.5)cy=Math.min(cy,feet+2.75);
+   cam.position.set(p.x+Math.sin(yaw)*Math.cos(pc)*D,cy,p.z+Math.cos(yaw)*Math.cos(pc)*D);cam.lookAt(p.x,camY-.25,p.z)}
+  else{hero.visible=false;cam.position.set(p.x,camY,p.z);tmp.set(-Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch)).add(cam.position);cam.lookAt(tmp)}
+  const pp=cam.position;
+  let best=null,bd=4.5;for(const m of MIR){m.visible=false;const d=m.position.distanceTo(pp);m.getWorldDirection(cd);if(d<bd&&cd.dot(tmp.copy(pp).sub(m.position))>0){bd=d;best=m}}if(best)best.visible=true;
   $('floorBtn').textContent=feet>UF-1?'Downstairs':'Upstairs'}
  else{if(tween){tween.k=Math.min(1,tween.k+dt/1.1);const e=tween.k<.5?2*tween.k*tween.k:1-Math.pow(-2*tween.k+2,2)/2;cam.position.lerpVectors(tween.p0,tween.p1,e);controls.target.lerpVectors(tween.t0,tween.t1,e);if(tween.k>=1)tween=null}controls.update();for(const m of MIR)m.visible=false}
  T.waterN.offset.x+=dt*.03;T.waterN.offset.y+=dt*.018;T.caustic.offset.x+=dt*.025;T.caustic.offset.y-=dt*.015;
