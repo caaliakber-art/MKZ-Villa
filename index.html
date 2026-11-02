@@ -104,10 +104,11 @@ button:hover{background:rgba(255,255,255,.12)}
   </section>
   <section data-p="plot" hidden>
    <p class="small">The working drawing does not show the plot. These are estimates read from the renders. Enter the real distances from the site plan to check what fits.</p>
-   <label class="rg" for="sR">Right side, from the house wall <output id="oR"></output><input type="range" id="sR" min="1" max="12" step="0.1" value="7.7"></label>
+   <label class="rg" for="sR">Right side, from the house wall <output id="oR"></output><input type="range" id="sR" min="0.5" max="12" step="0.1" value="1.5"></label>
    <label class="rg" for="sL">Left side, from the jali walkway <output id="oL"></output><input type="range" id="sL" min="0.5" max="6" step="0.1" value="2"></label>
-   <label class="rg" for="sF">Front, from the bedroom 2 facade <output id="oF"></output><input type="range" id="sF" min="3" max="15" step="0.1" value="7.9"></label>
+   <label class="rg" for="sF">Front, from the bedroom 2 facade <output id="oF"></output><input type="range" id="sF" min="3" max="15" step="0.1" value="9"></label>
    <label class="rg" for="sB">Rear, from the master toilet <output id="oB"></output><input type="range" id="sB" min="1" max="8" step="0.1" value="3"></label>
+   <h3>Car porch position</h3><div class="row" id="cpPos"><button data-s="R" aria-pressed="true">In front of Bedroom 2</button><button data-s="L">In front of Guest bedroom</button></div>
    <div class="note" id="fit"></div>
    <h3>Real location (Pallinada Road)</h3>
    <div class="row" id="mapMode"><button data-m="sat" aria-pressed="true">Satellite</button><button data-m="osm">Street map</button><button data-m="off">Off</button></div>
@@ -263,7 +264,7 @@ const wrect=r=>{const[a,b]=P(r[0],r[1]),[c,d]=P(r[2],r[3]);return[a,c,b,d]};
 const mesh=(geo,mat,par=CURG||scene,sh=true)=>{const m=new THREE.Mesh(geo,mat);m.castShadow=sh;m.receiveShadow=true;if(mat.userData?.depth)m.customDepthMaterial=mat.userData.depth;par.add(m);return m};
 function jaliPanel(mat,w,h,x,y,z,ry,grp){const g=new THREE.PlaneGeometry(w,h),uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*w,uv.getY(i)*h);g.rotateY(ry);g.translate(x,y+h/2,z);mesh(g,mat,grp==='roof'?roofG:scene)}
 function tri(pts,mat,place,grp,depth){const s=new THREE.Shape(pts.map(p=>new THREE.Vector2(p[0],p[1])));const g=depth?new THREE.ExtrudeGeometry(s,{depth,bevelEnabled:false}):new THREE.ShapeGeometry(s);place(g);
- if(depth)add(mat,g,grp);else mesh(g,mat,grp==='roof'?roofG:scene)}
+ if(depth)add(mat,g,grp);else mesh(g,mat,grp==='roof'?roofG:(CURG||scene))}
 function picture(map,w,h,x,y,z,ry,frame='brass'){const g=new THREE.PlaneGeometry(w,h);g.rotateY(ry);g.translate(x,y,z);const off=new THREE.Vector3(0,0,.012).applyAxisAngle(new THREE.Vector3(0,1,0),ry);g.translate(off.x,0,off.z);mesh(g,std({map,roughness:.6}),scene,false);box(frame,w+.08,h+.08,.02,x,y,z,{c:1,ry})}
 function plant(x,z,y,s=1,pot='porcelain'){cyl(pot,.2*s,.42*s,x,y,z,{r2:.24*s});for(let i=0;i<16;i++){const g=new THREE.PlaneGeometry(.45*s,.45*s);g.rotateX(-R()*1.2);g.rotateY(R()*6.28);g.translate(x+(R()-.5)*.3*s,y+.45*s+R()*.75*s,z+(R()-.5)*.3*s);add('leafCard',g)}}
 
@@ -404,12 +405,8 @@ const[pa,pc,pb,pd]=wrect([345,478,450,817]);
  for(let z=z0;z<z1;z+=.16){const xe=P((z/S)+OY<985?340:303,0)[0];box('black',xe-x0,.1,.05,(x0+xe)/2,yt-.1,z,{g:'roof'})}
  jaliPanel(JD,z1-z0,2.75,x0-.02,F,(z0+z1)/2,PI/2);COL.push([x0-.1,x0+.05,z0,z1,F,F+3])}
 
-/* ---------- Car porch (front right) ---------- */
-const[cpA,cpZ0]=P(965,1420),[cpB,cpZ1]=P(1285,1740);
-{const cx=(cpA+cpB)/2,cz=(cpZ0+cpZ1)/2;
- for(const x of[cpA+.2,cpB-.2])for(const z of[cpZ0+.2,cpZ1-.2]){box('white',.42,3,.42,x,0,z);COL.push([x-.25,x+.25,z-.25,z+.25,0,3])}
- for(const z of[cpZ0+.2,cpZ1-.2])box('white',cpB-cpA,.3,.3,cx,2.85,z);for(const x of[cpA+.2,cpB-.2])box('white',.3,.3,cpZ1-cpZ0,x,2.85,cz);
- gable(cx,cz,cpB-cpA,cpZ1-cpZ0,3.15,1.5,.6,'base',JW);box('coping',cpB-cpA-.2,.04,cpZ1-cpZ0-.2,cx,0,cz)}
+/* ---------- Car porch: sits in front of the house (built by buildCarport below) ---------- */
+let cpA,cpZ0,cpB,cpZ1,cpSide='R';const CPCOL=[],cpG=new THREE.Group();scene.add(cpG);var extReady=false,labsReady=false;
 
 /* ---------- Vehicles: Nissan Patrol (Y62 proportions), Royal Enfield Bullet and Thunderbird ---------- */
 const chrome=std({color:0xe9edf0,metalness:1,roughness:.12,envMapIntensity:1.6}),blk=std({color:0x17181a,roughness:.6}),tyreM=std({color:0x131313,roughness:.88});
@@ -430,7 +427,7 @@ function patrol(px,py){const g=new THREE.Group(),[x,z]=P(px,py),W=2.0;
  bx(blk,.14,.2,W+.02,2.62,.56,0);bx(blk,.14,.22,W+.02,-2.64,.58,0);
  for(const wx of[1.55,-1.6])for(const sd of[-1,1]){const zz=sd*(W/2-.15);gm(g,new THREE.TorusGeometry(.33,.1,16,40),tyreM,wx,.43,zz);gm(g,new THREE.CylinderGeometry(.34,.34,.22,32),tyreM,wx,.43,zz).rotation.x=PI/2;
   gm(g,new THREE.CylinderGeometry(.27,.27,.225,32),chrome,wx,.43,zz).rotation.x=PI/2;for(let k=0;k<6;k++){const sp=gm(g,new THREE.BoxGeometry(.05,.5,.02),blk,wx,.43,zz+sd*.115);sp.rotation.z=k*PI/6}gm(g,new THREE.CylinderGeometry(.07,.07,.24,16),chrome,wx,.43,zz).rotation.x=PI/2}
- g.rotation.y=-PI/2;g.position.set(x,0,z);scene.add(g);COL.push([x-1,x+1,z-2.65,z+2.65,0,2])}
+ g.rotation.y=-PI/2;g.position.set(x,0,z);(CURG||scene).add(g);CPCOL.push([x-1,x+1,z-2.65,z+2.65,0,2])}
 function bike(px,py,o){const g=new THREE.Group(),b=new THREE.Group(),[x,z]=P(px,py),paint=new THREE.MeshPhysicalMaterial({color:o.col,metalness:.4,roughness:.25,clearcoat:1,envMapIntensity:1.3}),gold=std({color:0xd9b24a,metalness:1,roughness:.25});
  for(const wx of[.7,-.68]){gm(b,new THREE.TorusGeometry(.3,.055,12,36),tyreM,wx,.355,0);gm(b,new THREE.TorusGeometry(.245,.012,6,36),chrome,wx,.355,0);gm(b,new THREE.CylinderGeometry(.05,.05,.12,14),chrome,wx,.355,0).rotation.x=PI/2;
   for(let k=0;k<(o.thunder?10:18);k++){const a=k/(o.thunder?10:18)*PI*2;tube(b,[wx,.355,0],[wx+Math.cos(a)*.24,.355+Math.sin(a)*.24,(k%2?.03:-.03)],o.thunder?.012:.004,o.thunder?blk:chrome)}
@@ -449,8 +446,18 @@ function bike(px,py,o){const g=new THREE.Group(),b=new THREE.Group(),[x,z]=P(px,
  gm(b,new THREE.CylinderGeometry(.09,.09,.03,24),chrome,-.02,.45,.12).rotation.x=PI/2;
  tube(b,[.15,.44,.13],[-.4,.38,.16],.032,chrome);tube(b,[-.35,.4,.16],[-.88,.47,.16],o.thunder?.06:.05,chrome);
  gm(b,new THREE.BoxGeometry(.2,.17,.06),paint,-.22,.68,.1);gm(b,new THREE.BoxGeometry(.06,.05,.12),tailM,-.86,.84,0);
- b.rotation.x=.09;g.add(b);g.rotation.y=-PI/2;g.position.set(x,0,z);scene.add(g);COL.push([x-.4,x+.4,z-1.05,z+1.05,0,1.3])}
-patrol(1040,1590);bike(1170,1590,{col:0x121214});bike(1235,1592,{col:0x22385c,thunder:1});
+ b.rotation.x=.09;g.add(b);g.rotation.y=-PI/2;g.position.set(x,0,z);(CURG||scene).add(g);CPCOL.push([x-.4,x+.4,z-1.05,z+1.05,0,1.3])}
+function buildCarport(side){cpSide=side;cpG.children.slice().forEach(c=>cpG.remove(c));CPCOL.length=0;
+ const ox=side==='L'?300:630;[cpA,cpZ0]=P(ox,1505);[cpB,cpZ1]=P(ox+320,1825);const cx=(cpA+cpB)/2,cz=(cpZ0+cpZ1)/2;COLLECT={};CURG=cpG;
+ for(const x of[cpA+.2,cpB-.2])for(const z of[cpZ0+.2,cpZ1-.2]){box('white',.42,3,.42,x,0,z);CPCOL.push([x-.25,x+.25,z-.25,z+.25,0,3])}
+ for(const z of[cpZ0+.2,cpZ1-.2])box('white',cpB-cpA,.3,.3,cx,2.85,z);for(const x of[cpA+.2,cpB-.2])box('white',.3,.3,cpZ1-cpZ0,x,2.85,cz);
+ gable(cx,cz,cpB-cpA,cpZ1-cpZ0,3.15,1.5,.6,'base',JW);box('coping',cpB-cpA-.2,.04,cpZ1-cpZ0-.2,cx,0,cz);mesh(new THREE.BoxGeometry(1.2,.02,.2),extMat,cpG,false).position.set(cx,2.98,cz);
+ patrol(ox+80,1665);bike(ox+205,1665,{col:0x121214});bike(ox+270,1667,{col:0x22385c,thunder:1});
+ for(const m in COLLECT)mesh(mergeGeometries(COLLECT[m]),M[m],cpG);COLLECT=null;CURG=null;
+ if(extReady)EXT[1].position.set(cx,2.6,cz);
+ if(labsReady){const L2={'Car Porch':[cx,3.6,cz],'Nissan Patrol':[P(ox+80,0)[0],2.3,P(0,1665)[1]],'Bullet':[P(ox+205,0)[0],1.5,P(0,1665)[1]],'Thunderbird':[P(ox+270,0)[0],1.5,P(0,1667)[1]]};
+  labs.forEach(l=>{const v=L2[l.d.textContent];if(v)l.v.set(...v)});JUMP['Car Porch']=[cx,cpZ1+1.4,0,F];buildSite()}}
+buildCarport('R');
 
 /* ---------- Room lights, switches, fans ---------- */
 const ROOM={},SWITCH=[],FANS=[];
@@ -579,7 +586,7 @@ pl(0x43d6ff,8,(pa+pc)/2,.3,(pb+pd)/2,7);pl(0xffd29a,10,(cpA+cpB)/2,2.6,(cpZ0+cpZ
 {for(const[px,py]of[[620,1880],[620,1600],[200,1700],[1330,1450],[900,1300],[1100,1850],[150,600],[1300,700]]){const[x,z]=P(px,py);cyl('black',.06,.55,x,0,z);const t=mesh(new THREE.CylinderGeometry(.065,.065,.06,14),extMat,scene,false);t.position.set(x,.58,z)}
  for(const px of[700,870]){const[x]=P(px,0),[,z]=P(0,1490);const u=mesh(new THREE.CylinderGeometry(.08,.08,.05,12),extMat,scene,false);u.position.set(x,.03,z+.6);const sp=new THREE.SpotLight(0xffd8a0,0,9,.5,.6,2);sp.position.set(x,.1,z+.7);sp.target.position.set(x,4,z+.1);sp.userData.i=40;scene.add(sp,sp.target);EXT.push(sp)}
  for(let z=P(0,470)[1];z<P(0,1380)[1];z+=1.2){const d=mesh(new THREE.CylinderGeometry(.05,.05,.01,12),extMat,scene,false);d.position.set(P(255,0)[0],F+2.79,z)}
- const cp=mesh(new THREE.BoxGeometry(1.2,.02,.2),extMat,scene,false);cp.position.set((cpA+cpB)/2,2.98,(cpZ0+cpZ1)/2)}
+ extReady=true}
 
 /* ---------- Vegetation: leaf-card trees, palms and shrubs (instanced) ---------- */
 const colAttr=(g,f)=>{g=g.index?g.toNonIndexed():g;const n=g.attributes.position.count,a=new Float32Array(n*3);for(let i=0;i<n;i++){const c=f(i);a.set([c.r,c.g,c.b],i*3)}g.setAttribute('color',new THREE.BufferAttribute(a,3));return g};
@@ -599,36 +606,36 @@ const HX_L=P(205,0)[0],HX_R=P(955,0)[0],HZ_F=P(0,1490)[1],HZ_R=P(0,55)[1];
 const broad=[],palm=[];
 for(let i=0;i<300;i++){const x=-62+R()*130,z=-68+R()*95;if((x<HX_L-6.8||x>HX_R+12.8||z<HZ_R-8.8))broad.push([x,z,.85+R()*.8,R()*6.3])}
 for(let i=0;i<80;i++){const x=-58+R()*120,z=-62+R()*88;if((x<HX_L-6.5||x>HX_R+12.5||z<HZ_R-8.5))palm.push([x,z,.8+R()*.45,R()*6.3])}
-[[150,1560],[1330,1000],[1300,250],[160,250],[700,0],[1050,110],[880,1650]].forEach(([a,b],i)=>{const[x,z]=P(a,b);broad.push([x,z,i===6?.55:.8+R()*.3,R()*6])});
+[[150,1560],[1330,1000],[1300,250],[160,250],[700,0],[1050,110]].forEach(([a,b])=>{const[x,z]=P(a,b);broad.push([x,z,.8+R()*.3,R()*6])});
 [[130,1250],[1360,620],[1360,1300],[140,700],[400,30],[1080,850],[1160,560]].forEach(([a,b])=>{const[x,z]=P(a,b);palm.push([x,z,.9+R()*.3,R()*6])});
 const isOut=([x,z])=>x<HX_L-6||x>HX_R+12||z<HZ_R-8,OUTV=[];for(const[Ls,T1,C1,M1,M2]of[[broad,broadT,broadC,trunkMat,leafMat],[palm,palmT,palmC,trunkMat,frondMat]]){const o=Ls.filter(isOut),i=Ls.filter(p=>!isOut(p));inst(T1,M1,i);inst(C1,M2,i);OUTV.push(inst(T1,M1,o),inst(C1,M2,o))}
-{const sh=[];for(let i=0;i<14;i++){const[x,z]=P(435+i*13,1421);sh.push([x,z,.6,R()*6])}[[205,1420],[230,1460],[470,1480],[930,1440],[460,1560],[880,1560]].forEach(([a,b])=>{const[x,z]=P(a,b);sh.push([x,z,1.2,R()*6])});inst(shrubC,leafMat,sh)}
+{const sh=[];for(let i=0;i<14;i++){const[x,z]=P(435+i*13,1421);sh.push([x,z,.6,R()*6])}[[205,1420],[230,1460],[470,1480],[930,1440],[460,1560]].forEach(([a,b])=>{const[x,z]=P(a,b);sh.push([x,z,1.2,R()*6])});inst(shrubC,leafMat,sh)}
 
 /* ---------- Static site pieces ---------- */
 let GROUND;
 {const g=new THREE.PlaneGeometry(700,700);g.rotateX(-PI/2);const t=T.grass.clone();t.repeat.set(700/6,700/6);t.needsUpdate=true;GROUND=mesh(g,std({map:t,roughness:1}),scene,false)}
-{const g=mesh(new THREE.CylinderGeometry(1.25,1.3,.45,40),M.coping);const[x,z]=P(880,1650);g.position.set(x,.22,z);COL.push([x-1.3,x+1.3,z-1.3,z+1.3,0,1])}
+
 rect('coping',[425,1402,612,1440],0,.42);rect('soil',[430,1406,607,1436],.3,.13);
 
 /* ---------- Commit batches ---------- */
 for(const k in B){const[grp,m]=k.split('|');const me=mesh(mergeGeometries(B[k]),M[m],grp==='roof'?roofG:scene,m!=='glass')}
 
 /* ---------- Plot boundary (rebuildable from the sliders) ---------- */
-const plot={r:7.7,l:2,f:7.9,b:3},shrubSite=[];let gateZ=0;
+const plot={r:1.5,l:2,f:9,b:3},shrubSite=[];let gateZ=0;
 function sbox(m,w,h,d,x,y,z){const b=new THREE.Mesh(boxGeo(w,h,d),M[m]);b.position.set(x,y+h/2,z);b.castShadow=b.receiveShadow=true;siteG.add(b);return b}
 function buildSite(){siteG.children.slice().forEach(c=>{siteG.remove(c);c.geometry?.dispose()});SCOL.length=0;
  const L=HX_L-plot.l,Rx=HX_R+plot.r,Fz=HZ_F+plot.f,Rz=HZ_R-plot.b,t=.2,h=1.6;gateZ=Fz;
  const seg=(x0,x1,z0,z1)=>{if(x1-x0<.05&&z1-z0<.05)return;const w=Math.max(x1-x0,t),d=Math.max(z1-z0,t),x=(x0+x1)/2,z=(z0+z1)/2;sbox('plaster',w,h,d,x,0,z);sbox('coping',w+.06,.08,d+.06,x,h,z);SCOL.push([x-w/2,x+w/2,z-d/2,z+d/2,0,h])};
  seg(L,Rx,Rz,Rz);seg(L,L,Rz,Fz);seg(Rx,Rx,Rz,Fz);
- const g1=P(330,0)[0],g2=P(410,0)[0],g3=Math.min(P(990,0)[0],Rx-.4),g4=Math.min(P(1265,0)[0],Rx-.25);
- seg(L,g1,Fz,Fz);seg(g2,g3,Fz,Fz);if(Rx-g4>.1)seg(g4,Rx,Fz,Fz);
+ const pg=cpSide==='L'?[700,780]:[330,410],g1=P(pg[0],0)[0],g2=P(pg[1],0)[0],g3=Math.max(L+.3,Math.min(cpA+.15,Rx-.4)),g4=Math.min(cpB-.15,Rx-.25);
+ {let x0=L;for(const[a,b]of[[g1,g2],[g3,g4]].sort((p,q)=>p[0]-q[0])){seg(x0,a,Fz,Fz);x0=b}if(Rx-x0>.1)seg(x0,Rx,Fz,Fz)}
  for(const x of[g1,g2,g3,g4]){sbox('stone',.45,1.9,.45,x,0,Fz);const l=new THREE.Mesh(new THREE.BoxGeometry(.22,.22,.22),extMat);l.position.set(x,2.02,Fz);siteG.add(l)}
  {const p=new THREE.Mesh(new THREE.PlaneGeometry(.75,.24),std({map:TXT.name,roughness:.5}));p.position.set(g1,1.4,Fz+.23);siteG.add(p)}
  sbox('paver',Rx-L-.2,.03,Fz-P(0,1400)[1],(L+Rx)/2,0,(Fz+P(0,1400)[1])/2);if(Rx>P(945,0)[0])sbox('paver',Rx-P(945,0)[0]-.1,.03,P(0,1400)[1]-P(0,1150)[1],(Rx+P(945,0)[0])/2,0,(P(0,1400)[1]+P(0,1150)[1])/2);
  sbox('coping',400,.02,1.6,0,0,Fz+1.0).userData.road=1;sbox('black',400,.02,7,0,0,Fz+5.3).userData.road=1;
  const sh=[],per=[[L,Rz,Rx,Rz],[Rx,Rz,Rx,Fz],[L,Rz,L,Fz],[L,Fz,Rx,Fz]];for(const[x0,z0,x1,z1]of per){const len=Math.hypot(x1-x0,z1-z0);for(let d=.4;d<len;d+=1.1){const x=x0+(x1-x0)*d/len,z=z0+(z1-z0)*d/len,ix=x0===x1?(x0===L?.7:-.7):0,iz=z0===z1?(z0===Rz?.7:-.7):0;if(z0===Fz&&((x>g1-.4&&x<g2+.4)||(x>g3-.4&&x<g4+.4)))continue;sh.push([x+ix,z+iz,.9+R()*.6,R()*6])}}
  inst(shrubC,leafMat,sh,false,siteG);
- const cOK=Rx>=cpB+.25&&Fz>=cpZ1+.3,spare=Math.min(Rx-cpB,Fz-cpZ1);
+ const cOK=Rx>=cpB+.25&&Fz>=cpZ1+.3&&L<=cpA-.25,spare=Math.min(Rx-cpB,Fz-cpZ1);
  document.getElementById('fit').innerHTML=(cOK?`<b class="ok">Car porch fits.</b> ${(Rx-cpB).toFixed(1)} m beside it, ${(Fz-cpZ1).toFixed(1)} m in front.`:`<b class="bad">Car porch crosses the boundary</b> by ${Math.abs(Math.min(Rx-cpB,Fz-cpZ1)).toFixed(1)} m. It would need to move or shrink.`)+`<br>Plot about ${(Rx-L).toFixed(1)} m wide × ${(Fz-Rz).toFixed(1)} m deep (${((Rx-L)*(Fz-Rz)/40.47).toFixed(1)} cents).`;
  JUMP['Front gate']=[P(560,0)[0],Fz-1.3,0,F];if(window.__mapReady)applyMapVis()}
 const JUMP={};
@@ -639,10 +646,10 @@ buildSite();
 const $=id=>document.getElementById(id);
 const LAB=[['Sitout',362,1270],['Living',520,1050],['Stair',450,935],['Reading Area',600,770],['Dining',620,560],['Lobby',848,570],['Kitchen',580,370],['Work Area',405,345],['Store',516,210],
  ['Master Bedroom',822,380],['Dressing',870,216],['Toilet',875,110],['Kids Room',812,800],['Toilet',852,935],['Prayer Room',812,1050],['Guest Bedroom',517,1300],['Guest Toilet',670,1400],['Bedroom 2',832,1300],['Toilet',797,1435],
- ['Pool',398,647,F+.4,1],['Jali Walkway',255,1000,F+1.2,1],['Car Porch',1125,1480,3.6,1],['Nissan Patrol',1040,1590,2.3,1],['Bullet',1170,1590,1.5,1],['Thunderbird',1235,1592,1.5,1],['Basketball',260,1830,4,1],['Gym terrace',700,575,UF+1.6,1],['Upper floor (indicative)',600,845,UF+2,1]];
+ ['Pool',398,647,F+.4,1],['Jali Walkway',255,1000,F+1.2,1],['Car Porch',790,1665,3.6,1],['Nissan Patrol',710,1665,2.3,1],['Bullet',835,1665,1.5,1],['Thunderbird',900,1667,1.5,1],['Basketball',260,1830,4,1],['Gym terrace',700,575,UF+1.6,1],['Upper floor (indicative)',600,845,UF+2,1]];
 const labEl=$('labels'),labs=LAB.map(([n,x,y,h=F+1.3,ext])=>{const d=document.createElement('div');d.className='lb'+(ext?' ext':'');d.textContent=n;labEl.appendChild(d);const[px,pz]=P(x,y);return{d,v:new THREE.Vector3(px,h,pz),up:/Upper|Gym/.test(n)}});
 const sel=$('room');
-[['Front gate'],['Sitout',362,1300,0],['Living',600,1100,1.2],['Prayer Room',760,1110,-1.2],['Dining',600,640,0],['Kitchen',600,415,0],['Master Bedroom',760,420,-.9],['Reading Area',620,830,0],['Kids Room',760,868,-.5],['Guest Bedroom',560,1350,1.0],['Bedroom 2',760,1340,-.9],['Jali Walkway',255,1380,0],['Pool',470,840,0],['Upper floor',620,930,PI/2,UF],['Gym terrace',700,660,0,UF],['Car Porch',1125,1820,0],['Basketball',330,1760,1.2]]
+[['Front gate'],['Sitout',362,1300,0],['Living',600,1100,1.2],['Prayer Room',760,1110,-1.2],['Dining',600,640,0],['Kitchen',600,415,0],['Master Bedroom',760,420,-.9],['Reading Area',620,830,0],['Kids Room',760,868,-.5],['Guest Bedroom',560,1350,1.0],['Bedroom 2',760,1340,-.9],['Jali Walkway',255,1380,0],['Pool',470,840,0],['Upper floor',620,930,PI/2,UF],['Gym terrace',700,660,0,UF],['Car Porch',790,1900,0],['Basketball',330,1760,1.2]]
  .forEach(([n,x,y,yaw,lv=F])=>{if(x!==undefined)JUMP[n]=[...P(x,y),yaw,lv];const o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o)});
 
 /* ---------- Qibla arrow and plan overlay ---------- */
@@ -701,7 +708,7 @@ const ORB={p:[-9,17,38],t:[1.5,2,1.5]},DOLL={p:[.5,42,9],t:[0,0,-.5]};
 const ANG={'Front':[[0,14,40],[1,2,2]],'Front left':[[-28,16,30],[0,2,0]],'Front right':[[30,16,30],[1,2,0]],'Left side':[[-38,12,0],[0,2,0]],'Right side':[[40,12,0],[1,2,0]],'Rear':[[0,16,-42],[0,2,0]],'Top down':[[.1,58,.1],[0,0,0]],'Neighbourhood':[[60,520,420],[0,0,0]],'From the gate':[[P(560,0)[0],1.7,21.5],[0,3.5,0]]};
 const inS=(s,x,z)=>x>=s[0]&&x<=s[1]&&z>=s[2]&&z<=s[3];
 function floorAt(x,z,f){let b=0;for(const s of SURF)if(inS(s,x,z)&&s[4]<=f+.5&&s[4]>b)b=s[4];return b}
-function blocked(x,z,f,r=.22){const lo=f+.15,hi=f+1.7;for(const L of[COL,SCOL])for(const c of L)if(x>c[0]-r&&x<c[1]+r&&z>c[2]-r&&z<c[3]+r&&c[5]>lo&&c[4]<hi)return true;
+function blocked(x,z,f,r=.22){const lo=f+.15,hi=f+1.7;for(const L of[COL,SCOL,CPCOL])for(const c of L)if(x>c[0]-r&&x<c[1]+r&&z>c[2]-r&&z<c[3]+r&&c[5]>lo&&c[4]<hi)return true;
  for(const s of SURF)if(inS(s,x,z)&&s[4]>f+.5&&s[4]<f+1.8)return true;return false}
 const TEMPS={warm:[0xffd6a0,0xffd49a],neutral:[0xfff0dc,0xfff2e4],cool:[0xe4eeff,0xeef4ff]};
 function setRoom(r,on){r.on=on;const t=TEMPS[TEMP];r.L.color.set(t[0]);r.mat.emissive.set(t[1]);r.mat.emissiveIntensity=on?2.4*Math.min(LB,1.4):0;r.L.intensity=on?(r.ext?8:16)*LB:0;
@@ -769,6 +776,8 @@ const setFront=(b,fromSel)=>{mapB=front=((Math.round(b)%360)+360)%360;$('mB').va
 $('orient').onchange=e=>setFront(+e.target.value,1);$('mB').oninput=e=>setFront(+e.target.value);
 $('mE').oninput=e=>{mapEo=+e.target.value;mapUI();placeMap();save()};$('mN').oninput=e=>{mapNo=+e.target.value;mapUI();placeMap();save()};
 $('mSave').onclick=saveMap;
+const cpUI=()=>$('cpPos').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.s===cpSide)));
+$('cpPos').onclick=e=>{const b=e.target.closest('button');if(!b)return;buildCarport(b.dataset.s);cpUI();save()};
 $('mapMode').onclick=e=>{const b=e.target.closest('button');if(!b)return;mapMode=b.dataset.m;$('mapMode').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));buildMap();save()};
 for(const id of['sR','sL','sF','sB'])$(id).addEventListener('input',()=>placeMap());
 /* tools: plan overlay and measuring */
@@ -816,13 +825,14 @@ const DEF=[['Sofa',525,1022,0],['Armchair',372,1065,PI/2],['Rug',525,1078,0],['C
  ['Treadmill',560,520,0,null,UF],['Weight bench',700,545,PI/2,null,UF],['Dumbbell rack',820,468,0,null,UF],['Yoga mat',860,620,0,null,UF],['Exercise bike',590,640,0,null,UF],['Sofa',600,760,0,null,UF],
  ['Basketball hoop',260,1850,PI]];
 const KEY='jinad3d-v4';
-function save(){try{localStorage.setItem(KEY,JSON.stringify({col:colState,front,map:{mode:mapMode,e:mapEo,n:mapNo},dining:diningN,items:FURN.map(g=>({k:g.userData.kind,a:g.userData.arg,ry:g.userData.ry,x:+g.position.x.toFixed(3),z:+g.position.z.toFixed(3),y:+g.position.y.toFixed(3),r:+g.rotation.y.toFixed(3)}))}))}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({col:colState,cp:cpSide,front,map:{mode:mapMode,e:mapEo,n:mapNo},dining:diningN,items:FURN.map(g=>({k:g.userData.kind,a:g.userData.arg,ry:g.userData.ry,x:+g.position.x.toFixed(3),z:+g.position.z.toFixed(3),y:+g.position.y.toFixed(3),r:+g.rotation.y.toFixed(3)}))}))}catch(e){}}
 function spawnDefaults(){DEF.forEach(([k,x,y,r,a,b])=>spawn(k,x,y,r,a??null,null,b??F));setDining(6,1)}
 $('fReset').onclick=()=>{FURN.slice().forEach(g=>scene.remove(g));FURN.length=0;select(null);spawnDefaults();save()};
 let saved=null;try{saved=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}
 if(saved?.items?.length){saved.items.forEach(i=>{const g=spawn(i.k,i.x/S+OX,i.z/S+OY,i.ry,i.a,null,F+i.y);if(g)g.rotation.y=i.r});diningN=saved.dining??6;$('dSeats').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.n===diningN)));diningFit()}else spawnDefaults();
 if(saved?.col)for(const k in saved.col)if(M[k])setCol(k,saved.col[k],1);
 if(saved?.front!==undefined)front=saved.front;if(saved?.map){mapMode=saved.map.mode??'sat';mapEo=saved.map.e??0;mapNo=saved.map.n??0;$('mapMode').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.m===mapMode)))}
+labsReady=true;buildCarport(saved?.cp==='L'?'L':'R');cpUI();
 mapB=front;$('mB').value=front;$('mE').value=mapEo;$('mN').value=mapNo;$('orient').value=String(Math.round(front/45)%8*45);mapUI();buildMap();
 
 /* ---------- Pointer and keyboard ---------- */
