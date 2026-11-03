@@ -948,6 +948,8 @@ renderer.setAnimationLoop(()=>{const dt=Math.min(clock.getDelta(),.05);if(earth)
  if(mPts.length===2){tmp.copy(mPts[0]).add(mPts[1]).multiplyScalar(.5).project(cam);mLab.hidden=!(tmp.z<1);mLab.style.left=(tmp.x+1)/2*innerWidth+'px';mLab.style.top=(1-tmp.y)/2*innerHeight+'px'}
  if(HQ){aoCam.copy(cam);aoCam.layers.set(0);composer.render()}else renderer.render(scene,cam)});
 lay(scene);$('load').hidden=true;
+/* film hook: lets a camera script frame shots (used to make the house film) */
+window.__mkz={cam,controls,setMode,setTime,ROOM,setRoom,P,setLab:v=>{labOn=v},quality:v=>{HQ=v}};
 </script>
 
 </html>
